@@ -133,8 +133,24 @@ async function fetchAndProcessNews() {
     }
 
     console.log(`\nFinished processing! Added ${newArticlesAdded} new translated articles.`);
+    
+    // Log success
+    await supabase.from('sync_logs').insert([{
+      sync_type: 'NEWS',
+      status: 'SUCCESS',
+      message: `Found ${feed.items.length} articles. Added ${newArticlesAdded} new translated articles.`,
+      items_added: newArticlesAdded
+    }]);
+
   } catch (error) {
     console.error("Error fetching RSS feed:", error);
+    // Log error
+    await supabase.from('sync_logs').insert([{
+      sync_type: 'NEWS',
+      status: 'ERROR',
+      message: error.message || 'Unknown error occurred',
+      items_added: 0
+    }]);
   }
   
   // Exit the process so the terminal doesn't hang

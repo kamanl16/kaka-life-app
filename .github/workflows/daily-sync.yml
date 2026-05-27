@@ -1,0 +1,52 @@
+name: Automated Daily Sync (News & Places)
+
+on:
+  # Schedule to run every day at 6:00 AM UTC (12:00 AM MST)
+  schedule:
+    - cron: '0 6 * * *'
+  
+  # Allow manual triggering from the GitHub Actions tab or via API (Admin Dashboard)
+  workflow_dispatch:
+    inputs:
+      sync_type:
+        description: 'What to sync? (all, news, places)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - news
+          - places
+
+jobs:
+  sync_data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install Dependencies
+        run: npm ci
+        
+      - name: Sync News
+        if: github.event.inputs.sync_type == 'all' || github.event.inputs.sync_type == 'news' || github.event_name == 'schedule'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/fetchNews.js
+        
+      - name: Sync Places
+        if: github.event.inputs.sync_type == 'all' || github.event.inputs.sync_type == 'places' || github.event_name == 'schedule'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          YELP_API_KEY: ${{ secrets.YELP_API_KEY }}
+        run: node scripts/fetchPlaces.js

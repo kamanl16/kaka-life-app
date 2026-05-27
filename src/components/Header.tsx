@@ -35,6 +35,12 @@ export const Header: React.FC = () => {
                 <span className="material-symbols-outlined text-[18px]">person</span>
                 {profile?.username || user.user_metadata?.username || (user.email ? user.email.split('@')[0] : '用戶')}
               </Link>
+              {profile?.role === 'admin' && (
+                <Link to="/admin" className="font-label-md text-on-surface-variant flex items-center gap-1 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full hover:bg-secondary-container/80 transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+                  後台
+                </Link>
+              )}
               <button onClick={signOut} className="font-label-md text-label-md text-error hover:underline transition-colors px-2">
                 登出
               </button>

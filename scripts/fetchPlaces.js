@@ -113,10 +113,26 @@ async function fetchAndProcessPlaces() {
       
     } catch (err) {
       console.error(`Error fetching query ${query}:`, err);
+      // Log individual query error but continue
+      await supabase.from('sync_logs').insert([{
+        sync_type: 'PLACES',
+        status: 'ERROR',
+        message: `Query failed: ${query}. Error: ${err.message || 'Unknown error'}`,
+        items_added: 0
+      }]);
     }
   }
 
-  console.log(`\nFinished! Added ${addedCount} new places.`);
+  console.log(`\nFinished! Added/Updated ${addedCount} places.`);
+  
+  // Log overall success
+  await supabase.from('sync_logs').insert([{
+    sync_type: 'PLACES',
+    status: 'SUCCESS',
+    message: `Processed 5 Yelp queries. Added/Updated ${addedCount} places.`,
+    items_added: addedCount
+  }]);
+  
   process.exit(0);
 }
 

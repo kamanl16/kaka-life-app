@@ -92,6 +92,17 @@ export const Profile: React.FC = () => {
               儲存變更
             </button>
             
+            {profile?.role === 'admin' && (
+              <button 
+                type="button" 
+                onClick={() => navigate('/admin')}
+                className="w-full bg-secondary-container text-on-secondary-container py-3 rounded-xl font-label-lg font-bold hover:bg-secondary-container/80 transition-all active:scale-[0.98] flex justify-center items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+                前往系統後台
+              </button>
+            )}
+            
             <button 
               type="button" 
               onClick={handleLogout}

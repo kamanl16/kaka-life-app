@@ -12,6 +12,7 @@ import { Publish } from './pages/Publish';
 import { Forum } from './pages/Forum';
 import { ForumDetail } from './pages/ForumDetail';
 import { Profile } from './pages/Profile';
+import { Admin } from './pages/Admin';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="admin" element={<Admin />} />
             </Route>
           </Routes>
         </BrowserRouter>
