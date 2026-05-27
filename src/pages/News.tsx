@@ -16,8 +16,15 @@ export const News: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('全部新聞');
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(10); // Load more state
 
   const categories = ['全部新聞', '本地', '社區', '經濟', '活動', '生活'];
+
+  // Reset pagination when category changes
+  const handleCategoryChange = (cat: string) => {
+    setActiveCategory(cat);
+    setVisibleCount(10);
+  };
 
   useEffect(() => {
     fetchNews();
@@ -50,7 +57,11 @@ export const News: React.FC = () => {
 
   // Extract the featured article (latest) and the rest of the list
   const featuredArticle = filteredArticles.length > 0 ? filteredArticles[0] : null;
-  const listArticles = filteredArticles.length > 1 ? filteredArticles.slice(1) : [];
+  const allListArticles = filteredArticles.length > 1 ? filteredArticles.slice(1) : [];
+  
+  // Sliced articles for 'Load More' pattern
+  const currentListArticles = allListArticles.slice(0, visibleCount);
+  const hasMore = visibleCount < allListArticles.length;
 
   // Helper to format date
   const formatDate = (dateString: string) => {
@@ -76,7 +87,7 @@ export const News: React.FC = () => {
           {categories.map((cat) => (
             <button 
               key={cat}
-              onClick={() => setActiveCategory(cat)}
+              onClick={() => handleCategoryChange(cat)}
               className={`whitespace-nowrap px-5 py-2 rounded-full font-label-md text-label-md transition-colors border ${
                 activeCategory === cat 
                   ? 'bg-primary text-on-primary border-primary shadow-sm' 
@@ -137,11 +148,11 @@ export const News: React.FC = () => {
               )}
 
               {/* Article List */}
-              {listArticles.length > 0 && (
+              {currentListArticles.length > 0 && (
                 <div className="flex flex-col gap-6">
                   <h3 className="font-headline-sm text-on-surface font-bold border-l-4 border-primary pl-3">其他發佈</h3>
                   
-                  {listArticles.map((article) => (
+                  {currentListArticles.map((article) => (
                     <article 
                       key={article.id} 
                       className="flex flex-col sm:flex-row gap-4 bg-surface-container-lowest rounded-xl p-4 border border-outline-variant hover:shadow-md transition-shadow group cursor-pointer"
@@ -171,11 +182,16 @@ export const News: React.FC = () => {
                   ))}
 
                   {/* Pagination Button */}
-                  <div className="flex justify-center mt-4">
-                    <button className="px-6 py-2 border border-outline text-on-surface font-label-md rounded-lg hover:bg-surface-container-low transition-colors">
-                      加載更多新聞
-                    </button>
-                  </div>
+                  {hasMore && (
+                    <div className="flex justify-center mt-4">
+                      <button 
+                        onClick={() => setVisibleCount(prev => prev + 10)}
+                        className="px-6 py-2 border border-outline text-on-surface font-label-md rounded-lg hover:bg-surface-container-low transition-colors"
+                      >
+                        加載更多新聞
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
