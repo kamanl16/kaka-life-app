@@ -6,7 +6,7 @@ While the application's user interface is localized in Traditional Chinese to se
 
 ## 🌟 Core Features
 
-- **📰 Automated Local News Aggregator**: Features a custom Node.js web scraper that fetches local Calgary news via RSS feeds, automatically translates the content using the Google Translate API, and stores it in the database.
+- **🤖 AI-Powered Local News Aggregator**: Features a custom Node.js web scraper that fetches local Calgary news via RSS feeds, and utilizes the **Google Gemini 2.5 Flash AI model** to automatically translate titles and generate concise, engaging summaries in Traditional Chinese.
 - **🍔 Dining & Discovery (Yelp Integration)**: Integrates directly with the Yelp Fusion API to fetch, cache, and display top-rated local restaurants and businesses.
 - **🏠 Classified Ads Marketplace**: A dedicated section for users to post and browse local classifieds (housing, job postings, second-hand marketplace) with image uploading capabilities.
 - **💬 Interactive Community Forum**: A fully functional discussion board supporting categorization, real-time posts, and threaded comments.
@@ -19,8 +19,9 @@ While the application's user interface is localized in Traditional Chinese to se
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS (Material Design 3 aesthetic)
 - **Backend as a Service (BaaS)**: Supabase (PostgreSQL, Authentication, Storage)
+- **AI Integration**: Google Generative AI (Gemini 2.5 Flash SDK)
 - **Routing**: React Router DOM
-- **External APIs**: Yelp Fusion API, Open-Meteo API (Weather), RSS Feeds, Google Translate API
+- **External APIs**: Yelp Fusion API, Open-Meteo API (Weather), RSS Feeds
 
 ## 🚀 Local Development
 
@@ -41,6 +42,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 # Private keys for the backend scraper scripts
 SUPABASE_SERVICE_KEY=your_supabase_service_role_key
 YELP_API_KEY=your_yelp_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ### 3. Start the Development Server
@@ -49,7 +51,7 @@ npm run dev
 ```
 
 ### 4. Run Backend Scraper Scripts
-To populate the database with the latest news and Yelp places (requires the service keys in `.env`):
+To populate the database with the latest news (translated/summarized via AI) and Yelp places (requires the service keys in `.env`):
 ```bash
 node scripts/fetchNews.js
 node scripts/fetchPlaces.js

@@ -1,7 +1,7 @@
 import Parser from 'rss-parser';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import { translate } from '@vitalets/google-translate-api';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -24,21 +24,43 @@ const parser = new Parser({
   }
 });
 
-// 2. Configure Translation Service (Free Unofficial Google Translate API)
-async function translateToTraditionalChinese(text, retries = 3) {
-  if (!text) return "";
+// 2. Configure Gemini AI Service
+if (!process.env.GEMINI_API_KEY) {
+  console.error("Missing GEMINI_API_KEY environment variable. Please add it to your .env file.");
+  process.exit(1);
+}
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+async function processWithGemini(title, content) {
+  if (!title && !content) return { translatedTitle: "", translatedSnippet: "" };
   
+  const prompt = `
+You are an expert news translator and summarizer.
+Please process the following news article:
+
+Title: ${title}
+Content: ${content || 'No content provided.'}
+
+Please output ONLY valid JSON format with exactly these two keys:
+1. "translatedTitle": The title translated smoothly into Traditional Chinese (zh-TW).
+2. "translatedSnippet": A concise, engaging 1-2 sentence summary of the content in Traditional Chinese (zh-TW).
+Do not include markdown blocks like \`\`\`json, just output the raw JSON string.
+`;
+
   try {
-    const { text: translatedText } = await translate(text, { to: 'zh-TW' });
-    return translatedText;
+    const result = await model.generateContent(prompt);
+    let text = result.response.text();
+    // Clean up potential markdown formatting
+    text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    return JSON.parse(text);
   } catch (error) {
-    if (error.name === 'TooManyRequestsError' && retries > 0) {
-      console.log(`Rate limited. Waiting 5 seconds before retrying... (${retries} retries left)`);
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      return translateToTraditionalChinese(text, retries - 1);
-    }
-    console.error("Translation error:", error.message);
-    return text; // Fallback to original text on error
+    console.error("Gemini AI error:", error.message);
+    // Fallback to original text if AI fails
+    return { 
+      translatedTitle: title, 
+      translatedSnippet: content ? content.substring(0, 150) + '...' : '' 
+    };
   }
 }
 
@@ -69,11 +91,9 @@ async function fetchAndProcessNews() {
 
       console.log(`\nNew Article Found: ${item.title}`);
       
-      // 3b. Translate Title and Snippet
-      console.log("Translating to Traditional Chinese...");
-      const translatedTitle = await translateToTraditionalChinese(item.title);
-      // Snippets often contain HTML tags in RSS, but we'll try to translate the plain text version
-      const translatedSnippet = await translateToTraditionalChinese(item.contentSnippet || item.content);
+      // 3b. Translate and Summarize using Gemini AI
+      console.log("Processing with Gemini AI (Translation & Summary)...");
+      const { translatedTitle, translatedSnippet } = await processWithGemini(item.title, item.contentSnippet || item.content);
 
       // 3c. Extract Image
       // CBC sometimes includes an image enclosure, OR embeds an <img> tag in the description/content
@@ -108,8 +128,8 @@ async function fetchAndProcessNews() {
         newArticlesAdded++;
       }
       
-      // Add a longer delay to avoid hitting rate limits on the free Google translate API
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Add a 5-second delay to comply with Gemini Free Tier rate limits (15 Requests Per Minute)
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
 
     console.log(`\nFinished processing! Added ${newArticlesAdded} new translated articles.`);
