@@ -60,17 +60,17 @@ export const Admin: React.FC = () => {
         body: JSON.stringify({ syncType })
       });
 
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('無法連線到背景 API。請注意：手動同步按鈕只能在 Vercel 線上正式環境中使用，本地開發環境 (localhost) 無法執行 Vercel Serverless 功能！');
+      }
+
       const data = await response.json();
 
       if (response.ok) {
         setTriggerMessage({ type: 'success', text: '同步任務已成功發送至 GitHub Actions！請稍後刷新日誌查看結果。' });
       } else {
-        // Handle local Vite dev server 404
-        if (response.status === 404) {
-          setTriggerMessage({ type: 'error', text: '無法連線到 Vercel API。請注意，手動同步按鈕只能在 Vercel 線上環境中使用。' });
-        } else {
-          setTriggerMessage({ type: 'error', text: `觸發失敗：${data.error || '未知錯誤'}` });
-        }
+        setTriggerMessage({ type: 'error', text: `觸發失敗：${data.error || '未知錯誤'}` });
       }
     } catch (err: any) {
       setTriggerMessage({ type: 'error', text: `網路錯誤：${err.message}` });
