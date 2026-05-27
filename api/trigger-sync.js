@@ -27,10 +27,18 @@ export default async function handler(req, res) {
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  
+  // Initialize Supabase with the user's JWT to pass Row Level Security (RLS)
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  });
 
   // Get user from JWT
-  const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
   
   if (userError || !user) {
     return res.status(401).json({ error: 'Unauthorized' });
