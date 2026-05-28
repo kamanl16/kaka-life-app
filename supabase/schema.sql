@@ -11,8 +11,12 @@ CREATE TABLE IF NOT EXISTS public.news (
     image_url TEXT,
     source TEXT NOT NULL,
     category TEXT DEFAULT '本地', -- Store category like '本地' (Local)
+    is_translated BOOLEAN DEFAULT true, -- Tracks if AI translation succeeded
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- MIGRATION: Add is_translated column if table exists
+ALTER TABLE public.news ADD COLUMN IF NOT EXISTS is_translated BOOLEAN DEFAULT true;
 
 -- Set Row Level Security (RLS)
 -- For now, anyone can read the news, but only authenticated admins/service roles can insert/update.

@@ -44,7 +44,7 @@ export const Admin: React.FC = () => {
     setLoadingLogs(false);
   };
 
-  const handleTriggerSync = async (syncType: 'news' | 'places' | 'all') => {
+  const handleTriggerSync = async (syncType: 'news' | 'places' | 'all' | 'retry-news') => {
     if (!session) return;
     
     setTriggering(true);
@@ -147,7 +147,7 @@ export const Admin: React.FC = () => {
                 {triggering ? '傳送請求中...' : '立即同步所有資料'}
               </button>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <button 
                   onClick={() => handleTriggerSync('news')}
                   disabled={triggering}
@@ -161,6 +161,13 @@ export const Admin: React.FC = () => {
                   className="w-full bg-surface-container-high text-on-surface py-2 rounded-lg font-label-md hover:bg-surface-container-highest transition-colors disabled:opacity-50 text-sm border border-outline-variant"
                 >
                   僅同步店家
+                </button>
+                <button 
+                  onClick={() => handleTriggerSync('retry-news')}
+                  disabled={triggering}
+                  className="w-full sm:col-span-1 col-span-2 bg-secondary/10 text-secondary py-2 rounded-lg font-label-md hover:bg-secondary/20 transition-colors disabled:opacity-50 text-sm border border-secondary/30"
+                >
+                  重試失敗翻譯
                 </button>
               </div>
             </div>

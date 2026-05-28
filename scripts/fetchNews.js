@@ -53,13 +53,15 @@ Do not include markdown blocks like \`\`\`json, just output the raw JSON string.
     let text = result.response.text();
     // Clean up potential markdown formatting
     text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    return { ...parsed, success: true };
   } catch (error) {
     console.error("Gemini AI error:", error.message);
     // Fallback to original text if AI fails
     return { 
       translatedTitle: title, 
-      translatedSnippet: content ? content.substring(0, 150) + '...' : '' 
+      translatedSnippet: content ? content.substring(0, 150) + '...' : '',
+      success: false
     };
   }
 }
@@ -104,7 +106,7 @@ async function fetchAndProcessNews() {
         
         // 3b. Translate and Summarize using Gemini AI
         console.log("Processing with Gemini AI (Translation & Summary)...");
-        const { translatedTitle, translatedSnippet } = await processWithGemini(item.title, item.contentSnippet || item.content);
+        const { translatedTitle, translatedSnippet, success } = await processWithGemini(item.title, item.contentSnippet || item.content);
 
         // 3c. Extract Image
         let imageUrl = null;
@@ -131,7 +133,8 @@ async function fetchAndProcessNews() {
             content_snippet: translatedSnippet,
             image_url: imageUrl,
             source: feedConfig.source,
-            category: feedConfig.category
+            category: feedConfig.category,
+            is_translated: success
           }]);
 
         if (error) {
