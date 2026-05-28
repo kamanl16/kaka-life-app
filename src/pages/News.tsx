@@ -18,7 +18,7 @@ export const News: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(10); // Load more state
 
-  const categories = ['全部新聞', '本地', '社區', '經濟', '活動', '生活'];
+  const categories = ['全部新聞', '本地', '社區', '活動', '國際'];
 
   // Reset pagination when category changes
   const handleCategoryChange = (cat: string) => {

@@ -66,92 +66,106 @@ Do not include markdown blocks like \`\`\`json, just output the raw JSON string.
 
 // 3. Fetch and Process RSS
 async function fetchAndProcessNews() {
-  const RSS_FEED_URL = 'https://www.cbc.ca/cmlink/rss-canada-calgary'; // CBC Calgary RSS
-  
-  console.log(`Fetching RSS feed from: ${RSS_FEED_URL}`);
-  
-  try {
-    const feed = await parser.parseURL(RSS_FEED_URL);
-    console.log(`Found ${feed.items.length} articles. Processing...`);
+  const RSS_FEEDS = [
+    { url: 'https://www.cbc.ca/cmlink/rss-canada-calgary', source: 'CBC Calgary', category: '本地' },
+    { url: 'https://globalnews.ca/calgary/feed/', source: 'Global News', category: '本地' },
+    { url: 'https://calgaryherald.com/feed/', source: 'Calgary Herald', category: '社區' },
+    { url: 'https://www.cbc.ca/cmlink/rss-world', source: 'CBC World', category: '國際' },
+    { url: 'https://www.trumba.com/calendars/map-feeds.rss', source: 'City Events', category: '活動' }
+  ];
 
-    let newArticlesAdded = 0;
+  let totalArticlesFound = 0;
+  let totalNewArticlesAdded = 0;
 
-    for (const item of feed.items) {
-      // 3a. Check if article already exists in Supabase to avoid redundant translation API calls
-      const { data: existingArticle } = await supabase
-        .from('news')
-        .select('id')
-        .eq('link', item.link)
-        .single();
+  console.log(`Starting to fetch from ${RSS_FEEDS.length} RSS feeds...`);
 
-      if (existingArticle) {
-        // Article already exists, skip
-        continue;
-      }
-
-      console.log(`\nNew Article Found: ${item.title}`);
+  for (const feedConfig of RSS_FEEDS) {
+    console.log(`\n--- Fetching: ${feedConfig.source} ---`);
+    try {
+      const feed = await parser.parseURL(feedConfig.url);
       
-      // 3b. Translate and Summarize using Gemini AI
-      console.log("Processing with Gemini AI (Translation & Summary)...");
-      const { translatedTitle, translatedSnippet } = await processWithGemini(item.title, item.contentSnippet || item.content);
+      // Limit to top 15 articles per feed to avoid checking too many records
+      const recentItems = feed.items.slice(0, 15);
+      totalArticlesFound += recentItems.length;
+      
+      console.log(`Found ${recentItems.length} recent articles. Checking database...`);
 
-      // 3c. Extract Image
-      // CBC sometimes includes an image enclosure, OR embeds an <img> tag in the description/content
-      let imageUrl = null;
-      if (item.enclosure && item.enclosure.url && item.enclosure.type.startsWith('image/')) {
-        imageUrl = item.enclosure.url;
-      } else if (item.content) {
-        // Regex to find <img src='...'> or <img src="...">
-        const imgMatch = item.content.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
-        if (imgMatch && imgMatch[1]) {
-          imageUrl = imgMatch[1];
+      for (const item of recentItems) {
+        // 3a. Check if article already exists in Supabase
+        const { data: existingArticle } = await supabase
+          .from('news')
+          .select('id')
+          .eq('link', item.link)
+          .single();
+
+        if (existingArticle) continue;
+
+        console.log(`New Article: ${item.title}`);
+        
+        // 3b. Translate and Summarize using Gemini AI
+        console.log("Processing with Gemini AI (Translation & Summary)...");
+        const { translatedTitle, translatedSnippet } = await processWithGemini(item.title, item.contentSnippet || item.content);
+
+        // 3c. Extract Image
+        let imageUrl = null;
+        if (item.enclosure && item.enclosure.url && item.enclosure.type.startsWith('image/')) {
+          imageUrl = item.enclosure.url;
+        } else if (item.content) {
+          const imgMatch = item.content.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
+          if (imgMatch && imgMatch[1]) {
+            imageUrl = imgMatch[1];
+          }
         }
-      }
+        // Specific fallback for Global News / Calgary Herald 'media:content' if available
+        if (!imageUrl && item['media:content'] && item['media:content']['$'] && item['media:content']['$'].url) {
+          imageUrl = item['media:content']['$'].url;
+        }
 
-      // 3d. Insert into Supabase
-      const { error } = await supabase
-        .from('news')
-        .insert([{
-          title: translatedTitle,
-          link: item.link,
-          pub_date: new Date(item.pubDate),
-          content_snippet: translatedSnippet,
-          image_url: imageUrl,
-          source: 'CBC Calgary',
-          category: '本地'
-        }]);
+        // 3d. Insert into Supabase
+        const { error } = await supabase
+          .from('news')
+          .insert([{
+            title: translatedTitle,
+            link: item.link,
+            pub_date: new Date(item.pubDate || new Date()),
+            content_snippet: translatedSnippet,
+            image_url: imageUrl,
+            source: feedConfig.source,
+            category: feedConfig.category
+          }]);
 
-      if (error) {
-        console.error("Failed to insert article:", error);
-      } else {
-        console.log("Successfully translated and added to database!");
-        newArticlesAdded++;
+        if (error) {
+          console.error(`Failed to insert article (${feedConfig.source}):`, error);
+        } else {
+          console.log(`Successfully translated and added to database!`);
+          totalNewArticlesAdded++;
+        }
+        
+        // Add a 5-second delay to comply with Gemini Free Tier rate limits (15 Requests Per Minute)
+        await new Promise(resolve => setTimeout(resolve, 5000));
       }
-      
-      // Add a 5-second delay to comply with Gemini Free Tier rate limits (15 Requests Per Minute)
-      await new Promise(resolve => setTimeout(resolve, 5000));
+    } catch (error) {
+      console.error(`Error fetching RSS feed for ${feedConfig.source}:`, error.message);
+      // Log individual feed error but continue to next feed
+      await supabase.from('sync_logs').insert([{
+        sync_type: 'NEWS',
+        status: 'ERROR',
+        message: `Error from ${feedConfig.source}: ${error.message || 'Unknown error'}`,
+        items_added: 0
+      }]);
     }
-
-    console.log(`\nFinished processing! Added ${newArticlesAdded} new translated articles.`);
-    
-    // Log success
-    await supabase.from('sync_logs').insert([{
-      sync_type: 'NEWS',
-      status: 'SUCCESS',
-      message: `Found ${feed.items.length} articles. Added ${newArticlesAdded} new translated articles.`,
-      items_added: newArticlesAdded
-    }]);
-
-  } catch (error) {
-    console.error("Error fetching RSS feed:", error);
-    // Log error
-    await supabase.from('sync_logs').insert([{
-      sync_type: 'NEWS',
-      status: 'ERROR',
-      message: error.message || 'Unknown error occurred',
-      items_added: 0
-    }]);
   }
+
+  console.log(`\n==========================================`);
+  console.log(`Finished ALL feeds! Total new articles added: ${totalNewArticlesAdded}`);
+  
+  // Log overall success
+  await supabase.from('sync_logs').insert([{
+    sync_type: 'NEWS',
+    status: 'SUCCESS',
+    message: `Processed ${RSS_FEEDS.length} sources. Found ${totalArticlesFound} articles. Added ${totalNewArticlesAdded} new translated articles.`,
+    items_added: totalNewArticlesAdded
+  }]);
   
   // Exit the process so the terminal doesn't hang
   process.exit(0);
