@@ -77,10 +77,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 -- Enable RLS for profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own profile" 
+CREATE POLICY "Anyone can view profiles" 
 ON public.profiles
 FOR SELECT 
-USING (auth.uid() = id);
+USING (true);
 
 CREATE POLICY "Users can update own profile" 
 ON public.profiles
